@@ -8,6 +8,8 @@ from keras.preprocessing import image
 import os
 from sklearn.metrics import fbeta_score, precision_score, make_scorer, average_precision_score
 import scipy
+from skimage.color import convert_colorspace
+from skimage.color import rgb2ycbcr, rgb2gray, rgb2hed, rgb2ypbpr, rgb2ycbcr, rgb2lab, rgb2luv
 
 
 class TagsTransform(object):
@@ -101,39 +103,47 @@ def get_optimal_threshhold(true_label, prediction, iterations=100):
 
 
 def get_stat_features(img):
-
-    if len(img.shape) != 3:
-        print('it is not rgb image')
-        return None
+    fromspace = 'RGB'
+    tospaces = ['YIQ', 'YUV', 'HSV', 'RGB CIE', 'YPbPr', 'XYZ', 'YCbCr', 'gray', 'HED', 'lab', 'LUV']
 
     feature_vec = []
-    for dim_i in range(img.shape[2]):
-        description = scipy.stats.describe(img[:,:, dim_i], axis=None)
+    for tospace in tospaces:
 
-        #     add minmax
-        feature_vec.append(description[1][0])
-        feature_vec.append(description[1][1])
-        #     add mean
-        feature_vec.append(description[2])
-        #     add variance
-        feature_vec.append(description[3])
-        #     add skewness
-        feature_vec.append(description[4])
-        #     add kurtosis
-        feature_vec.append(description[5])
+        if tospace == 'gray':
+            img_converted = rgb2gray(img)
+        elif tospace == 'HED':
+            img_converted = rgb2hed(img)
+        elif tospace == 'lab':
+            # there can be parameters
+            img_converted = rgb2lab(img)
+        elif tospace == 'LUV':
+            img_converted = rgb2luv(img)
+        elif tospace == 'YPbPr':
+            img_converted = rgb2ypbpr(img)
+        elif tospace == 'YCbCr':
+            img_converted = rgb2ycbcr(img)
+        else:
+            img_converted = convert_colorspace(img, fromspace, tospace)
 
-    description = scipy.stats.describe(img, axis=None)
-    #   add minmax
-    feature_vec.append(description[1][0])
-    feature_vec.append(description[1][1])
-    #     add mean
-    feature_vec.append(description[2])
-    #     add variance
-    feature_vec.append(description[3])
-    #     add skewness
-    feature_vec.append(description[4])
-    #     add kurtosis
-    feature_vec.append(description[5])
+        arrays = []
+        arrays.append(img_converted)
+
+        if tospace != 'gray':
+            arrays.extend([img_converted[:,:,i] for i in range(img_converted.shape[2])])
+
+        for arr in arrays:
+            description = scipy.stats.describe(arr, axis=None)
+            #     add minmax
+            feature_vec.append(description[1][0])
+            feature_vec.append(description[1][1])
+            #     add mean
+            feature_vec.append(description[2])
+            #     add variance
+            feature_vec.append(description[3])
+            #     add skewness
+            feature_vec.append(description[4])
+            #     add kurtosis
+            feature_vec.append(description[5])
 
     feature_vec = np.array(feature_vec)
 
