@@ -10,6 +10,7 @@ from sklearn.metrics import fbeta_score, precision_score, make_scorer, average_p
 import scipy
 from skimage.color import convert_colorspace
 from skimage.color import rgb2ycbcr, rgb2gray, rgb2hed, rgb2ypbpr, rgb2ycbcr, rgb2lab, rgb2luv
+from scipy import stats
 
 
 class TagsTransform(object):
@@ -104,13 +105,16 @@ def get_optimal_threshhold(true_label, prediction, iterations=100):
 
 def get_stat_features(img):
     fromspace = 'RGB'
-    tospaces = ['YIQ', 'YUV', 'HSV', 'RGB CIE', 'YPbPr', 'XYZ', 'YCbCr', 'gray', 'HED', 'lab', 'LUV']
+    # tospaces = ['RGB', 'YIQ', 'YUV', 'HSV', 'RGB CIE', 'YPbPr', 'XYZ', 'YCbCr', 'gray', 'HED', 'lab', 'LUV']
+    tospaces = ['RGB', 'gray']
 
     feature_vec = []
     for tospace in tospaces:
 
         if tospace == 'gray':
             img_converted = rgb2gray(img)
+        elif tospace == 'RGB':
+            img_converted = img
         elif tospace == 'HED':
             img_converted = rgb2hed(img)
         elif tospace == 'lab':
@@ -144,7 +148,21 @@ def get_stat_features(img):
             feature_vec.append(description[4])
             #     add kurtosis
             feature_vec.append(description[5])
+            #     common stats
+            # feature_vec.append(stats.mode(arr, axis=None).mode[0])
+            # feature_vec.append(stats.gmean(arr, axis=None))
+            # # feature_vec.append(stats.hmean(arr, axis=None))
+            [feature_vec.append(el) for el in stats.moment(arr, moment=[1, 2, 3, 4, 5, 6], axis=None)]
+            # [feature_vec.append(stats.kstat(arr, i)) for i in range(1, 5)]
+            # [feature_vec.append(stats.kstatvar(arr, i)) for i in range(1, 3)]
+            # A = stats.cumfreq(arr)
+            # [feature_vec.append(el) for el in A.cumcount]
+            # feature_vec.append(A.lowerlimit)
+            # feature_vec.append(A.binsize)
+            # [feature_vec.append(el) for el in stats.histogram(arr).count]
+            [feature_vec.append(el) for el in np.percentile(arr, range(10, 100, 10))]
 
+    # print(feature_vec)
     feature_vec = np.array(feature_vec)
 
     return feature_vec
